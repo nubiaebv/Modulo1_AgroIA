@@ -25,7 +25,7 @@ class Imagenes():
         """
 
         cantidad = min(cantidad, len(self.nombres))
-        seleccionadas = random.sample(self.nombres, cantidad) # Seleccionamos imágenes random a mostrar
+        seleccionadas = random.sample(self.nombres, cantidad)  # Seleccionamos imágenes random a mostrar
 
         filas = 2
         columnas = (cantidad + 1) // 2
@@ -38,27 +38,32 @@ class Imagenes():
                 ax.axis('off')
                 continue
 
-            ruta_img = os.path.join(self.ruta_carpeta, seleccionadas[i])
-            img = cv2.imread(ruta_img, cv2.IMREAD_UNCHANGED)
+            try:
+                ruta_img = os.path.join(self.ruta_carpeta, seleccionadas[i])
+                img = cv2.imread(ruta_img, cv2.IMREAD_UNCHANGED)
 
-            if img is None:
-                ax.set_title("Imagen no leída")
+                if img is None:
+                    raise ValueError("Imagen no pudo ser leída")
+
+                """
+                Ponemos en RGB temporalmente si hay imágenes en BN para la visualización
+                """
+
+                # Conversión a RGB si es necesario
+                if len(img.shape) == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+                elif img.shape[2] == 4:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
+                else:
+                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+                ax.imshow(img)
                 ax.axis('off')
-                continue
+                ax.set_title(f"{seleccionadas[i][:15]}...")
 
-            """
-            Ponemos en RGB temporalmente si hay imágenes en BN para la visualización
-            """
-            if len(img.shape) == 2:
-                img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-            elif img.shape[2] == 4:
-                img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
-            else:
-                img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-            ax.imshow(img)
-            ax.axis('off')
-            ax.set_title(f"{seleccionadas[i][:15]}...")
+            except Exception as e:
+                ax.axis('off')
+                ax.set_title(f"Error: {str(e)}")
 
         plt.tight_layout()
         plt.show()
@@ -127,28 +132,33 @@ class Imagenes():
         ya_rgb = 0
 
         for nombre_img in self.nombres:
-            ruta_img = os.path.join(self.ruta_carpeta, nombre_img)
-            img_original = cv2.imread(ruta_img, cv2.IMREAD_UNCHANGED)
+            try:
+                ruta_img = os.path.join(self.ruta_carpeta, nombre_img)
+                img_original = cv2.imread(ruta_img, cv2.IMREAD_UNCHANGED)
 
-           # En caso de que ocurra algún error al momento de cargar la imagen
-            if img_original is None:
-                print(f"No se pudo leer la imagen: {nombre_img}")
-                continue
+                # En caso de que ocurra algún error al momento de cargar la imagen
+                if img_original is None:
+                    print(f"No se pudo leer la imagen: {nombre_img}")
+                    continue
 
-            # Acá ya se hace la conversión de BN en caso de que lo requiera a RGB
-            if len(img_original.shape) == 2:
-                img_rgb = cv2.cvtColor(img_original, cv2.COLOR_GRAY2RGB)
-                convertidas += 1
-            # Acá solo cuenta las que ya estén con color desde el inicio
-            elif len(img_original.shape) == 3 and img_original.shape[2] == 3:
-                img_rgb = img_original
-                ya_rgb += 1
-            else:
-                # En caso de que el formato no sea el adecuado, ya que en este caso se está trabajando con .img
-                print(f"Formato no reconocido en: {nombre_img}")
-                continue
+                # Acá ya se hace la conversión de BN en caso de que lo requiera a RGB
+                if len(img_original.shape) == 2:
+                    img_rgb = cv2.cvtColor(img_original, cv2.COLOR_GRAY2RGB)
+                    convertidas += 1
 
-            estandarizadas.append(img_rgb) #Acá ya agrega las imágenes que estén y se vayan convirtiendo a la nueva lista
+                # Acá solo cuenta las que ya estén con color desde el inicio
+                elif len(img_original.shape) == 3 and img_original.shape[2] == 3:
+                    img_rgb = img_original
+                    ya_rgb += 1
+                else:
+                    # En caso de que el formato no sea el adecuado, ya que en este caso se está trabajando con .img
+                    print(f"Formato no reconocido en: {nombre_img}")
+                    continue
+
+                estandarizadas.append(img_rgb) #Acá ya agrega las imágenes que estén y se vayan convirtiendo a la nueva lista
+
+            except Exception as e:
+                print(f"Error procesando la imagen {nombre_img}: {e}")
 
         self.estandarizadas = estandarizadas
         self.stats = {
@@ -164,9 +174,9 @@ class Imagenes():
         print(f"Total estandarizadas: {len(estandarizadas)}")
 
     def redimensionar_imagenes(self, nuevo_tamano=(256, 256)):
+
         """
-        Redimensiona las imágenes ya estandarizadas a RGB al tamaño deseado, usando en este caso el tramaño
-        estándar de las imágenes contenidas en las carpetas (256x256)
+        Redimensiona las imágenes ya estandarizadas a RGB al tamaño deseado.
         """
 
         # Es mejor primero estandarizar primero, así el color no se afecta tanto ni afecta al momento de redimensionar
@@ -176,9 +186,12 @@ class Imagenes():
 
         redimensionadas = [] # Nueva lista con las imágenes ya estandarizadas y dimensionadas adecuadamente
 
-        for img in self.estandarizadas:
-            img_redim = cv2.resize(img, nuevo_tamano)
-            redimensionadas.append(img_redim)
+        for idx, img in enumerate(self.estandarizadas):
+            try:
+                img_redim = cv2.resize(img, nuevo_tamano)
+                redimensionadas.append(img_redim)
+            except Exception as e:
+                print(f"No se pudo redimensionar la imagen en índice {idx}: {e}")
 
         self.redimensionadas = redimensionadas
         self.tamano_redimensionado = nuevo_tamano
